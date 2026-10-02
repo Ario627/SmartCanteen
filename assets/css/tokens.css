@@ -1,0 +1,53 @@
+:root {
+  color-scheme: light;
+
+  --paper: #f3f0e9;
+  --paper-raised: #fbfaf7;
+  --paper-sunken: #eae5db;
+
+  --ink: #16130e;
+  --ink-soft: #46403a;
+  --ink-mute: #8b8377;
+  --line: #d7d0c2;
+  --line-soft: #e6e1d6;
+
+  --accent: #cf4a1d;
+  --accent-deep: #a63a13;
+  --accent-wash: #fbe8e0;
+
+  --low: #2f7d5b;
+  --normal: #35708f;
+  --busy: #b9860f;
+  --full: #ae3b2b;
+
+  --cat-makanan: #cf4a1d;
+  --cat-minuman: #2f6f8f;
+  --cat-snack: #a9852f;
+
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 10px;
+  --r-lg: 18px;
+
+  --shell: 1200px;
+  --gutter: clamp(1.05rem, 4.2vw, 2.75rem);
+  --head-h: 60px;
+  --tabbar-h: 58px;
+
+  --f-display: "Bricolage Grotesque", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --f-text: "Inter Tight", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --t-2xs: 0.6875rem;
+  --t-xs: 0.75rem;
+  --t-sm: 0.8125rem;
+  --t-md: 0.9375rem;
+  --t-lg: 1.0625rem;
+  --t-xl: clamp(1.2rem, 1.08rem + 0.5vw, 1.45rem);
+  --t-2xl: clamp(1.5rem, 1.24rem + 1.25vw, 2.1rem);
+  --t-3xl: clamp(2rem, 1.42rem + 2.9vw, 3.5rem);
+  --t-4xl: clamp(2.35rem, 1.5rem + 4.3vw, 4.75rem);
+
+  --ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --dur: 0.2s;
+}
