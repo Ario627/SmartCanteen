@@ -97,8 +97,8 @@
           <div><dt>Waktu</dt><dd>${SC.fmt.clock(new Date(order.createdAt))}</dd></div>
         </dl>
         <div class="receipt__actions">
-          <a class="btn btn--solid" href="#/menu">Pesan lagi</a>
-          <a class="btn btn--line" href="#/">Beranda</a>
+          <a class="btn btn--solid" href="#/order/${encodeURIComponent(order.id)}">Lacak pesanan</a>
+          <a class="btn btn--line" href="#/menu">Pesan lagi</a>
         </div>
       </div>
     </section>`;

@@ -234,6 +234,11 @@ dd {
   background: color-mix(in oklab, var(--paper-raised) 94%, transparent);
   backdrop-filter: blur(16px);
   border-top: 1px solid var(--line);
+  transition: transform var(--dur) var(--ease);
+}
+
+.tabbar[data-hidden="true"] {
+  transform: translateY(110%);
 }
 
 .tabbar a {

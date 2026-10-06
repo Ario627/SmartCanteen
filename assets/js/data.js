@@ -154,19 +154,99 @@
     },
   ];
 
-  const byIdMap = new Map(products.map((product) => [product.id, product]));
+  const BASE_PRODUCTS = products.map((product) => Object.assign({}, product));
+  const inventoryListeners = new Set();
 
-  const codeMap = new Map(
-    products.map((product, index) => [product.id, String(index + 1).padStart(2, "0")])
-  );
+  function safe(fn) {
+    try {
+      return fn();
+    } catch {
+      return null;
+    }
+  }
 
-  const bestSellers = new Set(
+  const CATALOG_KEY = "smartcanteen.catalog.v1";
+  const byIdMap = new Map();
+  const categoryMap = new Map(categories.map((category) => [category.id, category]));
+  const codeMap = new Map();
+  const bestSellers = new Set();
+
+  function rebuildIndexes() {
+    byIdMap.clear();
+    codeMap.clear();
+    products.forEach((product, index) => {
+      byIdMap.set(product.id, product);
+      codeMap.set(product.id, String(index + 1).padStart(2, "0"));
+    });
+
+    bestSellers.clear();
     products
+      .filter((product) => product.sold > 0)
       .slice()
       .sort((a, b) => b.sold - a.sold)
       .slice(0, 3)
-      .map((product) => product.id)
-  );
+      .forEach((product) => bestSellers.add(product.id));
+  }
+
+  function validProduct(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    if (!/^[a-z0-9-]{3,60}$/.test(String(raw.id || ""))) return null;
+    if (typeof raw.name !== "string" || typeof raw.description !== "string") return null;
+    if (!categoryMap.has(raw.category)) return null;
+    const price = Math.floor(Number(raw.price));
+    if (!Number.isSafeInteger(price) || price < 500 || price > 250000) return null;
+    const name = raw.name.trim().replace(/\s+/g, " ");
+    const description = raw.description.trim().replace(/\s+/g, " ");
+    if (name.length < 2 || name.length > 48 || description.length < 8 || description.length > 180) return null;
+
+    return {
+      id: String(raw.id),
+      name,
+      category: raw.category,
+      price,
+      sold: Math.max(0, Math.floor(Number(raw.sold) || 0)),
+      available: typeof raw.available === "boolean" ? raw.available : true,
+      description,
+    };
+  }
+
+  function saveCatalog() {
+    safe(() =>
+      window.localStorage.setItem(
+        CATALOG_KEY,
+        JSON.stringify(products.map((product) => Object.assign({}, product)))
+      )
+    );
+  }
+
+  function loadCatalog() {
+    const stored = safe(() => JSON.parse(window.localStorage.getItem(CATALOG_KEY) || "null"));
+    products.splice(0, products.length, ...BASE_PRODUCTS.map((product) => Object.assign({}, product)));
+    if (!Array.isArray(stored)) {
+      rebuildIndexes();
+      return;
+    }
+
+    const baseById = new Map(products.map((product) => [product.id, product]));
+    const updated = new Map();
+    const custom = new Map();
+
+    stored.forEach((raw) => {
+      const product = validProduct(raw);
+      if (!product) return;
+      if (baseById.has(product.id)) updated.set(product.id, product);
+      else if (product.id.startsWith("custom-") && !custom.has(product.id)) custom.set(product.id, product);
+    });
+
+    products.forEach((product, index) => {
+      const saved = updated.get(product.id);
+      if (saved) products[index] = saved;
+    });
+    products.push(...custom.values());
+    rebuildIndexes();
+  }
+
+  loadCatalog();
 
   const sorters = {
     populer: (a, b) => b.sold - a.sold || a.name.localeCompare(b.name, "id"),
@@ -188,7 +268,78 @@
   }
 
   function categoryOf(id) {
-    return categories.find((category) => category.id === id) || categories[0];
+    return categoryMap.get(id) || categories[0];
+  }
+
+  function setAvailability(id, available) {
+    const product = byId(id);
+    if (!product || typeof available !== "boolean") return null;
+    if (product.available === available) return product;
+    product.available = available;
+    saveCatalog();
+    inventoryListeners.forEach((listener) => listener(products));
+    return product;
+  }
+
+  function saveProduct(draft, productId) {
+    if (!draft || typeof draft !== "object") return { error: "Data menu tidak valid" };
+    const current = productId ? byId(productId) : null;
+    if (productId && !current) return { error: "Menu tidak ditemukan" };
+
+    const category = String(draft.category || "");
+    const price = Number(draft.price);
+    const product = validProduct({
+      id: current ? current.id : `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      name: String(draft.name || ""),
+      category,
+      price,
+      sold: current ? current.sold : 0,
+      available: current ? current.available : true,
+      description: String(draft.description || ""),
+    });
+
+    if (!product) {
+      return {
+        error: "Periksa kembali nama, kategori, harga Rp500–Rp250.000, dan deskripsi (8–180 karakter).",
+      };
+    }
+
+    if (current) {
+      products[products.indexOf(current)] = product;
+    } else {
+      products.push(product);
+    }
+
+    rebuildIndexes();
+    saveCatalog();
+    inventoryListeners.forEach((listener) => listener(products));
+    return { product };
+  }
+
+  function removeProduct(productId) {
+    const product = byId(productId);
+    if (!product) return { error: "Menu tidak ditemukan" };
+    if (!productId.startsWith("custom-")) {
+      return { error: "Menu awal tidak dapat dihapus; ubah saja ketersediaannya" };
+    }
+
+    const referenced = SC.orders
+      .list()
+      .some((order) => order.items.some((item) => item.productId === productId));
+    if (referenced) {
+      return { error: "Menu ini sudah digunakan di pesanan. Tandai habis agar riwayat tetap utuh." };
+    }
+
+    products.splice(products.indexOf(product), 1);
+    rebuildIndexes();
+    saveCatalog();
+    inventoryListeners.forEach((listener) => listener(products));
+    return { product };
+  }
+
+  function subscribeInventory(listener) {
+    inventoryListeners.add(listener);
+    return () => inventoryListeners.delete(listener);
   }
 
   function list(options) {
@@ -205,5 +356,24 @@
       .sort(sorter);
   }
 
-  SC.data = { products, categories, byId, code, isBestSeller, categoryOf, list };
+  window.addEventListener("storage", (event) => {
+    if (event.key === CATALOG_KEY) {
+      loadCatalog();
+      inventoryListeners.forEach((listener) => listener(products));
+    }
+  });
+
+  SC.data = {
+    products,
+    categories,
+    byId,
+    code,
+    isBestSeller,
+    categoryOf,
+    list,
+    setAvailability,
+    saveProduct,
+    removeProduct,
+    subscribeInventory,
+  };
 })(window.SC || (window.SC = {}));

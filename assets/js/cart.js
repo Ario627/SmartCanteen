@@ -49,6 +49,13 @@
     listeners.forEach((listener) => listener(payload));
   }
 
+  window.addEventListener("storage", (event) => {
+    if (event.key !== KEY) return;
+    lines = read();
+    const payload = list();
+    listeners.forEach((listener) => listener(payload));
+  });
+
   function list() {
     return lines.slice();
   }
